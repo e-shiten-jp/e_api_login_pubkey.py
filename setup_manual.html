@@ -144,10 +144,12 @@
     <h3>推奨ディレクトリ構成</h3>
 <pre><code>~/e_api/                     ← API実行基盤（権限: 700 / 所有者のみアクセス可）
 ├── .pki/                    ← 鍵・暗号化データ格納（権限: 700）
+│   ├── file_pwd2.txt        ← 第2パスワード保存ファイル（手動作成）
+│   └── file_login_response.txt ← ログイン応答出力先（自動生成）
 ├── .venv/                   ← Python仮想環境（自動生成されます）
 ├── e_api_encode_pkcs12.py   ← 暗号化ユーティリティ
 ├── e_api_login_pkcs12.py    ← ログイン実行スクリプト
-└── e_api_url_info.txt   ← 口座情報設定ファイル（手動作成）</code></pre>
+└── file_url_info.txt        ← API接続情報ファイル（手動作成）</code></pre>
 
     <h3>設定コマンド</h3>
     <p>ターミナルを開き、以下のコマンドを順番に実行してディレクトリを作成・保護してください。</p>
@@ -202,19 +204,28 @@ pip list</code></pre>
         <li><code>e_api_login_pkcs12.py</code></li>
     </ul>
 
-    <h3>[3] 口座情報ファイル（手動作成）</h3>
-    <p>接続先や暗証番号を記録するファイルを <code>~/e_api/e_api_url_info.txt</code> として新規作成します。エディターとしてnanoを使っていますが、ご自身の慣れたエディターをお使いください。</p>
-<pre><code>nano ~/e_api/e_api_url_info.txt</code></pre>
+    <h3>[3] API接続情報ファイル（手動作成）</h3>
+    <p>接続先や暗証番号を記録するファイルを <code>~/e_api/file_url_info.txt</code> として新規作成します。</p>
+<pre><code>nano ~/e_api/file_url_info.txt</code></pre>
     <p>環境（本番/デモ）に合わせて以下の内容を記述し、保存してください。</p>
 <pre><code>{
+    "sSecondPassword": "あなたの第2暗証番号",
     "sUrl": "https://demo-kabuka.e-shiten.jp/e_api_v4r9/",
     "sJsonOfmt": "5"
 }</code></pre>
 
-    <h3>[4] 配置ファイルの権限変更</h3>
-    <p>万が一に備え、配下のファイルも所有者のみ読み書き可能（600）に制限します。</p>
+    <h3>[4] 第2パスワード保存ファイル（手動作成）</h3>
+    <p>注文、訂正、取り消しの処理で個別に利用する第2パスワードファイル（ログイン処理では未使用）を <code>~/e_api/.pki/file_pwd2.txt</code> として新規作成します。</p>
+<pre><code>nano ~/e_api/.pki/file_pwd2.txt</code></pre>
+    <div class="alert-box" style="background-color: #fffaf0; border-color: #feebc8; border-left-color: #dd6b20;">
+        <p class="alert-title" style="color: #dd6b20;">⚠️ 記述時の重要な注意点</p>
+        <p>このファイルには<strong>第2パスワードを平文のまま直接保存</strong>します。その際、末尾に改行コードや余分な制御文字が混入しないよう注意して記述してください。</p>
+    </div>
+
+    <h3>[5] 配置ファイルの権限変更</h3>
+    <p>万が一に備え、配下のすべてのファイルも所有者のみ読み書き可能（600）に制限します。</p>
 <pre><code>chmod 600 ~/e_api/.pki/*
-chmod 600 ~/e_api/e_api_url_info.txt
+chmod 600 ~/e_api/file_url_info.txt
 chmod 600 ~/e_api/*.py</code></pre>
 
     <hr>
@@ -302,7 +313,7 @@ sudo systemctl start e_api_login.service
 # 3. 実行ログ・ステータスの確認
 sudo systemctl status e_api_login.service</code></pre>
 
-    <p>ログにエラーが出ておらず、<code>~/e_api/e_api_login_response.txt</code> が正しく生成・復号されていれば、すべてのセットアップは完了です。</p>
+    <p>ログにエラーが出ておらず、隠しディレクトリ内に <code>~/e_api/.pki/file_login_response.txt</code> が正しく生成・復号されていれば、すべてのセットアップは完了です。</p>
 </div>
 
 </body>
