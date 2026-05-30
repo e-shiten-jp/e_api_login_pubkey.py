@@ -264,8 +264,8 @@ rm ~/e_api/.pki/e_api_private_key.der</code></pre>
 
     <hr>
 
-    <h2>5. systemdによるサービス化（自動実行設定）</h2>
-    <p>OS起動時やタイマー等で安全にプログラムを実行できるよう、Linuxのシステム管理機能（<code>systemd</code>）に登録します。</p>
+    <h2>5. systemdによるサービス化（基盤設定）</h2>
+    <p>OS管理機能（<code>systemd</code>）にプログラムを登録することで、環境変数を安全に隠蔽しながら実行できる環境を整えます。</p>
 
     <h3>[1] サービス定義ファイルの配置</h3>
     <p>配布された <code>e_api_login.service</code> を、システムの配置ディレクトリにコピーします（要管理者権限）。</p>
@@ -302,18 +302,59 @@ ExecStart=/home/username/e_api/.venv/bin/python3 /home/username/e_api/e_api_logi
 [Install]
 WantedBy=multi-user.target</code></pre>
 
-    <h3>[3] systemdの設定反映とテスト実行</h3>
-    <p>設定ファイルを保存したら、システムに反映させてテスト実行を行います。</p>
+    <h3>[3] systemdの設定反映</h3>
+    <p>設定ファイルを保存したら、以下のコマンドでシステムに設定をリロードさせます。</p>
+<pre><code>sudo systemctl daemon-reload</code></pre>
+
+    <hr>
+
+    <h2>6. 運用・実行方法（手動実行と定時自動実行）</h2>
+    <p>セットアップ完了後の、手動でのオンデマンド実行方法と、タイマー機能を利用した毎日決まった時刻への自動実行設定手順です。</p>
+
+    <h3>[1] 手動実行と状態確認の方法</h3>
+    <p>プログラムを今すぐテスト実行したい場合、また実行したプログラムの処理状態や成否ログを確認したい場合は、以下のシステム管理コマンドを利用します。</p>
+
+    <p><strong>■ サービスの手動起動（実行リクエスト）</strong></p>
+<pre><code>sudo systemctl start e_api_login.service</code></pre>
+
+    <p><strong>■ サービスの実行ステータス・ログ確認</strong></p>
+<pre><code>sudo systemctl status e_api_login.service</code></pre>
+    <p>※ログにエラーが出ておらず、隠しディレクトリ内に <code>~/e_api/.pki/file_login_response.txt</code> が正しく生成・復号されていれば、プログラムは正常に動作しています。</p>
+
+    <h3>[2] 指定時刻に自動実行する設定（タイマー設定）</h3>
+    <p>毎日決まった時刻（例：毎朝 08:30）にAPIログインを自動で実行させるため、systemdのタイマー機能（<code>.timer</code>）を作成します。</p>
+
+    <p><strong>手順 A: タイマー定義ファイルの新規作成</strong></p>
+<pre><code>sudo nano /etc/systemd/system/e_api_login.timer</code></pre>
+
+    <p><strong>手順 B: タイマー内容の記述</strong><br>
+    開いたファイルに以下の内容を貼り付けて保存します。時間は運用の必要に応じて <code>OnCalendar=</code> の部分を書き換えてください。</p>
+<pre><code>[Unit]
+Description=Run My Python Crypto API Service Daily
+
+[Timer]
+# 毎日 朝08時30分00秒 に実行する設定例（曜日の指定や複数時間の指定も可能）
+OnCalendar=*-*-* 08:30:00
+# サーバー起動後、最初の実行を少し遅らせる安全弁（任意）
+OnBootSec=2min
+# 呼び出す対象のサービス（同名の.serviceファイルが自動指定されます）
+Unit=e_api_login.service
+
+[Install]
+WantedBy=timers.target</code></pre>
+
+    <p><strong>手順 C: タイマーの有効化と自動起動登録</strong><br>
+    設定を保存後、システムに認識させ、OS起動時にもタイマーが自動で動き出すよう有効化します。</p>
 <pre><code># 1. systemd 設定のリロード
 sudo systemctl daemon-reload
 
-# 2. サービスの手動テスト起動
-sudo systemctl start e_api_login.service
+# 2. タイマーの有効化と今すぐの起動
+sudo systemctl enable --now e_api_login.timer
 
-# 3. 実行ログ・ステータスの確認
-sudo systemctl status e_api_login.service</code></pre>
+# 3. タイマーが正しくセットされているかの確認
+sudo systemctl list-timers --all | grep e_api_login</code></pre>
+    <p>※確認コマンドを実行し、次回実行予定時刻（NEXT）に指定した時間が表示されていれば、毎日の自動運用設定は完了です。</p>
 
-    <p>ログにエラーが出ておらず、隠しディレクトリ内に <code>~/e_api/.pki/file_login_response.txt</code> が正しく生成・復号されていれば、すべてのセットアップは完了です。</p>
 </div>
 
 </body>
