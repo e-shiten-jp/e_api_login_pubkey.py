@@ -235,7 +235,7 @@ $ chmod 700 ~/e_api/.pki</code></pre>
 
     <hr>
 
-    <h2>2. Python仮想環境（venv）の準備</h2>
+    <h2>2. Python仮想環境の準備</h2>
     <p>システムのPython環境に影響を与えず、プログラムに必要な依存ライブラリ（通信・暗号化モジュール等）を独立してインストールするため、仮想環境を作成します。</p>
 <pre><code># [1] e_api ディレクトリに移動
 $ cd ~/e_api
@@ -478,15 +478,19 @@ $ sudo systemctl list-timers --all | grep e_api_login</code></pre>
             </li>
 
             <li>
-                <strong>3. Python仮想環境（venv）の有効化確認</strong><br>
+                <strong>3. Python仮想環境の有効化確認</strong><br>
                 仮想環境に入った状態で、使用されるPythonのパスが正しいか確認します。
                 <div class="check-block">
-                    <span class="comment"># 仮想環境を有効化してパスを確認</span>
-                    <span><span class="prompt">$ </span>source ~/e_api/venv/bin/activate</span>
+                    <span class="comment"># ディレクトリに移動して有効化</span>
+                    <span><span class="prompt">$ </span>cd ~/e_api</span>
+                    <span><span class="prompt">$ </span>source .venv/bin/activate</span>
                     <span>(venv) <span class="prompt">$ </span>which python</span>
                     <span class="comment"></span>
-                    <span class="comment"># 正しい表示結果（末尾が「/e_api/venv/bin/python」になっていること）</span>
-                    <span class="output">/home/user/e_api/venv/bin/python</span>
+                    <span class="comment"># 正しい表示結果（末尾が「/e_api/.venv/bin/python」になっていること）</span>
+                    <span class="output">/home/user/e_api/.venv/bin/python</span>
+                    <span class="comment"># 仮想環境から抜ける</span>
+                    <span>(venv) <span class="prompt">$ </span>deactivate</span>
+                    <span><span class="prompt">$ </span></span>
                 </div>
             </li>
 
