@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>立花証券ｅ支店API 導入・設定マニュアル (v2.0.0)</title>
+    <title>立花証券ｅ支店API PKI認証 導入・設定マニュアル (v4r9)</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -135,22 +135,83 @@
             border-top: 1px solid var(--border-color);
             margin: 40px 0;
         }
+
+    /* </style>
+    <style> */
+        /* 作業確認用表示の追加 */
+        .success-box {
+            background-color: #f0fff4;
+            border-left: 4px solid #38a169;
+            padding: 20px;
+            border-radius: 4px;
+            margin-top: 30px;
+            margin-bottom: 20px;
+        }
+        .success-title {
+            font-weight: bold;
+            color: #276749;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.15rem;
+        }
+        .check-list {
+            list-style-type: none;
+            padding-left: 0;
+            margin: 0;
+        }
+        .check-list > li {
+            /* 修正：左側の余計な余白（padding-left: 30px）をなくし、行頭を揃えました */
+            position: relative;
+            padding-left: 0;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        /* 修正：位置ズレの原因になっていた「□」を表示するスタイル（::before）を完全に削除しました */
+        .check-list strong {
+            color: #22543d;
+            display: inline-block;
+            margin-bottom: 5px;
+        }
+        /* コマンド・出力結果共通のボックス */
+        .check-block {
+            background-color: #2d3748;
+            color: #fff;
+            padding: 12px 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin: 8px 0;
+            overflow-x: auto;
+        }
+        /* 各行をブロック要素にして、HTML側のインデント（空白）を完全に無視させます */
+        .check-block span {
+            display: block;
+            white-space: pre; /* 各行の中のスペースだけが正しく保持されます */
+        }
+        .check-block .comment { color: #a0aec0; }
+        .check-block .prompt { color: #cbd5e0; user-select: none; display: inline; } /* $マークは横並び */
+        .check-block .output { color: #81e6d9; } /* 出力結果は見やすい青緑色 */
     </style>
+
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1>立花証券ｅ支店API 導入・設定マニュアル<span class="version-badge">v2.0.0</span></h1>
+        <h1>立花証券ｅ支店API PKI認証 導入・設定マニュアル<span class="version-badge">v4r9</span></h1>
         <p class="subtitle">（PKCS#12暗号化・自動運用設定編）</p>
     </header>
 
     <div class="lead-text">
-        <p>本書は、ダウンロードしたAPIプログラムをLinux環境に導入し、認証IDや秘密鍵を安全に暗号化（PKCS#12相当のセキュア保存）した上で、<code>systemd</code> を用いて自動実行するための設定手順書です。</p>
+        <p>
+            ダウンロードしたAPIプログラムをLinux環境に導入し、認証IDや秘密鍵を安全に暗号化（PKCS#12相当のセキュア保存）した上で、<code>systemd</code> を用いて自動実行するための設定手順書です。<br>
+            <br>
+            動作確認環境は、API v4r9 / Python 3.13.5 / debian13 です。
+        </p>
     </div>
 
     <h2>1. ディレクトリ構成の作成と権限設定</h2>
-    <p>安全な運用のために、実行用ディレクトリと鍵を格納する隠しディレクトリを作成し、<strong>所有者以外のすべてのユーザーからのアクセスを完全に遮断（権限700）</strong>します。</p>
+    <p>安全な運用のために、実行用ディレクトリと鍵を格納する隠しディレクトリを作成し、<strong>所有者以外のすべてのユーザーからのアクセスを遮断（権限700）</strong>します。</p>
 
     <h3>推奨ディレクトリ構成</h3>
 <pre><code>~/e_api/                     ← API実行基盤（権限: 700 / 所有者のみアクセス可）
@@ -165,34 +226,34 @@
     <h3>設定コマンド</h3>
     <p>ターミナルを開き、以下のコマンドを順番に実行してディレクトリを作成・保護してください。</p>
 <pre><code># [1] ディレクトリの作成
-mkdir -p ~/e_api/.pki
+$ mkdir -p ~/e_api/.pki
 
 # [2] ディレクトリの権限（パーミッション）制限
 # 親ディレクトリを含め、所有者のみに全権限を付与し、他ユーザーを完全に締め出します
-chmod 700 ~/e_api
-chmod 700 ~/e_api/.pki</code></pre>
+$ chmod 700 ~/e_api
+$ chmod 700 ~/e_api/.pki</code></pre>
 
     <hr>
 
     <h2>2. Python仮想環境（venv）の準備</h2>
     <p>システムのPython環境に影響を与えず、プログラムに必要な依存ライブラリ（通信・暗号化モジュール等）を独立してインストールするため、仮想環境を作成します。</p>
 <pre><code># [1] e_api ディレクトリに移動
-cd ~/e_api
+$ cd ~/e_api
 
 # [2] 仮想環境（.venv）の作成
-python3 -m venv .venv
+$ python3 -m venv .venv
 
 # [3] 仮想環境の有効化（アクティベート）
-source .venv/bin/activate
+$ source .venv/bin/activate
 
 # [4] 必須パッケージのインストール
 # ※ プログラムで使用する通信・暗号化用の外部ライブラリを一括導入します
 # ※ Cryptodome（末尾にdomeがつく形式）を利用するため、pycryptodomex を指定します
-pip install --upgrade pip
-pip install urllib3 cryptography pycryptodomex
+$ pip install --upgrade pip
+$ pip install urllib3 cryptography pycryptodomex
 
 # （確認）指定した3つのライブラリが正しくインストールされたか確認
-pip list</code></pre>
+$ pip list</code></pre>
     <p><em>※以降の作業でターミナルを一度閉じた場合は、再度 <code>cd ~/e_api && source .venv/bin/activate</code> を実行して仮想環境に入ってください。</em></p>
 
     <hr>
@@ -217,27 +278,30 @@ pip list</code></pre>
 
     <h3>3.3. API接続情報ファイル（手動作成）</h3>
     <p>接続先や暗証番号を記録するファイルを <code>~/e_api/file_url_info.txt</code> として新規作成します。</p>
-<pre><code>nano ~/e_api/file_url_info.txt</code></pre>
+<pre><code>$ nano ~/e_api/file_url_info.txt</code></pre>
     <p>環境（本番/デモ）に合わせて以下の内容を記述し、保存してください。文字コードはUTF-8で保存します（プログラム側でBOMコードは自動排除されます）。</p>
 <pre><code>{
-    "sSecondPassword": "あなたの第2暗証番号",
     "sUrl": "https://demo-kabuka.e-shiten.jp/e_api_v4r9/",
     "sJsonOfmt": "5"
 }</code></pre>
 
     <h3>3.4. 第2パスワード保存ファイル（手動作成）</h3>
     <p>注文、訂正、取り消しの処理で個別に利用する第2パスワードファイル（ログイン処理では未使用）を <code>~/e_api/.pki/file_pwd2.txt</code> として新規作成します。</p>
-<pre><code>nano ~/e_api/.pki/file_pwd2.txt</code></pre>
+<pre><code>$ nano ~/e_api/.pki/file_pwd2.txt</code></pre>
     <div class="alert-box" style="background-color: #fffaf0; border-color: #feebc8; border-left-color: #dd6b20;">
         <p class="alert-title" style="color: #dd6b20;">⚠️ 記述時の重要な注意点</p>
-        <p>このファイルには<strong>第2パスワードを平文のまま直接保存</strong>します。その際、末尾に改行コードや余分な制御文字が混入しないよう注意して記述してください。</p>
+        <p>
+            このファイルには<strong>第2パスワードを保存</strong>します。その際、末尾に改行コードや余分な制御文字が混入しないよう注意して記述してください。<br>
+            <br>
+            第2パスワードは、注文、訂正、取消で使います。慎重に取り扱ってください。また短い期間で変更してお使いください。
+        </p>
     </div>
 
     <h3>3.5. 配置ファイルの権限変更</h3>
     <p>万が一に備え、配下のすべてのファイルも所有者のみ読み書き可能（600）に制限します。</p>
-<pre><code>chmod 600 ~/e_api/.pki/*
-chmod 600 ~/e_api/file_url_info.txt
-chmod 600 ~/e_api/*.py</code></pre>
+<pre><code>$ chmod 600 ~/e_api/.pki/*
+$ chmod 600 ~/e_api/file_url_info.txt
+$ chmod 600 ~/e_api/*.py</code></pre>
 
     <hr>
 
@@ -245,8 +309,8 @@ chmod 600 ~/e_api/*.py</code></pre>
     <p>認証IDと秘密鍵、第2暗証番号を一つにまとめ、強固に暗号化した設定ファイル（<code>secure_config.enc</code>）を生成します。</p>
 
     <h3>4.1. 暗号化プログラムの実行</h3>
-<pre><code>cd ~/e_api
-python3 e_api_encode_pkcs12.py</code></pre>
+<pre><code>$ cd ~/e_api
+$ python3 e_api_encode_pkcs12.py</code></pre>
 
     <h3>4.2. 出力結果の記録（最重要）</h3>
     <p>実行が成功すると、画面に以下のようなメッセージが表示されます。</p>
@@ -269,9 +333,9 @@ API_DECRYPT_KEY=gAAAAABm...（ランダムな長い文字列）...=
 
     <h3>4.3. 生ファイルの安全な削除</h3>
     <p>暗号化ファイル（<code>secure_config.enc</code>）が正常に生成されたため、サーバー上に残った<strong>暗号化されていない原本ファイルは安全のために速やかに削除</strong>します。</p>
-<pre><code>rm ~/e_api/.pki/e_api_authid.txt
-rm ~/e_api/.pki/e_api_private_key.pem
-rm ~/e_api/.pki/e_api_private_key.der</code></pre>
+<pre><code>$ rm ~/e_api/.pki/e_api_authid.txt
+$ rm ~/e_api/.pki/e_api_private_key.pem
+$ rm ~/e_api/.pki/e_api_private_key.der</code></pre>
 
     <hr>
 
@@ -280,11 +344,11 @@ rm ~/e_api/.pki/e_api_private_key.der</code></pre>
 
     <h3>5.1. サービス定義ファイルの配置</h3>
     <p>配布された <code>e_api_login.service</code> を、システムの配置ディレクトリにコピーします（要管理者権限）。</p>
-<pre><code>sudo cp ~/e_api/e_api_login.service /etc/systemd/system/e_api_login.service</code></pre>
+<pre><code>$ sudo cp ~/e_api/e_api_login.service /etc/systemd/system/e_api_login.service</code></pre>
 
     <h3>5.2. サービスファイルの編集</h3>
     <p>コピーしたファイルを編集し、実行ユーザー名や環境変数を各自の環境に書き換えます。例ではエディターnanoを使っていますが、ご自身の使い慣れたエディターで編集してください。</p>
-<pre><code>sudo nano /etc/systemd/system/e_api_login.service</code></pre>
+<pre><code>$ sudo nano /etc/systemd/system/e_api_login.service</code></pre>
 
     <p>以下の項目を、お客様の環境に合わせて修正してください。</p>
     <ul>
@@ -315,7 +379,7 @@ WantedBy=multi-user.target</code></pre>
 
     <h3>5.3. systemdの設定反映</h3>
     <p>設定ファイルを保存したら、以下のコマンドでシステムに設定をリロードさせます。</p>
-<pre><code>sudo systemctl daemon-reload</code></pre>
+<pre><code>$ sudo systemctl daemon-reload</code></pre>
 
     <hr>
 
@@ -326,10 +390,10 @@ WantedBy=multi-user.target</code></pre>
     <p>プログラムをテスト起動したい場合、また実行したプログラムの処理状態や成否ログを確認したい場合は、以下のシステム管理コマンドを利用します。</p>
 
     <p><strong>■ サービスの手動起動（実行リクエスト）</strong></p>
-<pre><code>sudo systemctl start e_api_login.service</code></pre>
+<pre><code>$ sudo systemctl start e_api_login.service</code></pre>
 
     <p><strong>■ サービスの実行ステータス・ログ確認</strong></p>
-<pre><code>sudo systemctl status e_api_login.service</code></pre>
+<pre><code>$ sudo systemctl status e_api_login.service</code></pre>
     <p>※ログにエラーが出ておらず、隠しディレクトリ内に <code>~/e_api/.pki/file_login_response.txt</code> が正しく生成・復号されていれば、プログラムは正常に動作しています。</p>
 
     <h3>6.2. 通信タイムアウトと自動リトライ（運用上の重要仕様）</h3>
@@ -341,13 +405,13 @@ WantedBy=multi-user.target</code></pre>
     </ul>
 
     <p>詳細な生ログを直接確認したい場合は、以下のコマンドを実行してください。</p>
-<pre><code>journalctl -u e_api_login.service --no-pager -n 50</code></pre>
+<pre><code>$ journalctl -u e_api_login.service --no-pager -n 50</code></pre>
 
     <h3>6.3. 指定時刻に自動実行する設定（タイマー設定）</h3>
     <p>毎日決まった時刻（例：毎朝 08:30）にAPIログインを自動で実行させるため、systemdのタイマー機能（<code>.timer</code>）を作成します。</p>
 
     <p><strong>手順 A: タイマー定義ファイルの新規作成</strong></p>
-<pre><code>sudo nano /etc/systemd/system/e_api_login.timer</code></pre>
+<pre><code>$ sudo nano /etc/systemd/system/e_api_login.timer</code></pre>
 
     <p><strong>手順 B: タイマー内容の記述</strong><br>
     開いたファイルに以下の内容を貼り付けて保存します。時間は運用の必要に応じて <code>OnCalendar=</code> の部分を書き換えてください。</p>
@@ -368,16 +432,82 @@ WantedBy=timers.target</code></pre>
     <p><strong>手順 C: タイマーの有効化と自動起動登録</strong><br>
     設定を保存後、システムに認識させ、OS起動時にもタイマーが自動で動き出すよう有効化します。</p>
 <pre><code># 1. systemd 設定のリロード
-sudo systemctl daemon-reload
+$ sudo systemctl daemon-reload
 
 # 2. タイマーの有効化と今すぐの起動
-sudo systemctl enable --now e_api_login.timer
+$ sudo systemctl enable --now e_api_login.timer
 
 # 3. タイマーが正しくセットされているかの確認
-sudo systemctl list-timers --all | grep e_api_login</code></pre>
+$ sudo systemctl list-timers --all | grep e_api_login</code></pre>
     <p>※確認コマンドを実行し、次回実行予定時刻（NEXT）に指定した時間が表示されていれば、毎日の自動運用設定は完了です。</p>
 
+<!-- マニュアルの最後に追加してください -->
+    <div class="success-box">
+        <!-- 修正：表題を「7. 最終環境確認チェックリスト」に変更 -->
+             <hr>
+
+    <h2>7. 最終環境確認チェックリスト</h2>
+
+        <p class="success-title"></p>
+        <p>すべての設定が正常に完了しているか、以下のコマンドを実行して状態確認を行ってください。</p>
+        
+        <ul class="check-list">
+            <li>
+                <strong>1. 認証関係ファイルの削除確認</strong><br>
+                不要になった設定ファイル（txt, pem, der）が残っていないことを確認します。
+                <div class="check-block">
+                    <span class="comment"># 確認コマンドを実行</span>
+                    <span><span class="prompt">$ </span>ls -l ~/e_api/e_api_authid.txt ~/e_api/e_api_private_key.* 2>/dev/null</span>
+                    <span class="comment"></span><!-- 空行用の空タグ -->
+                    <span class="comment"># 正しい表示結果（何も表示されなければ正常に削除されています）</span>
+                    <span class="output">（何も表示されないこと）</span>
+                </div>
+            </li>
+
+            <li>
+                <strong>2. ディレクトリとファイルの権限（パーミッション）確認</strong><br>
+                重要なファイルが、所有者のみ読み書き可能（600）に制限されているか確認します。
+                <div class="check-block">
+                    <span class="comment"># 確認コマンドを実行</span>
+                    <span><span class="prompt">$ </span>ls -l ~/e_api/file_url_info.txt ~/e_api/*.py</span>
+                    <span class="comment"></span>
+                    <span class="comment"># 正しい表示結果（行頭が必ず「-rw-------」から始まっていること）</span>
+                    <span class="output">-rw------- 1 user user  123  5月 31 12:00 /home/user/e_api/file_url_info.txt</span>
+                    <span class="output">-rw------- 1 user user 4567  5月 31 12:00 /home/user/e_api/main.py</span>
+                </div>
+            </li>
+
+            <li>
+                <strong>3. Python仮想環境（venv）の有効化確認</strong><br>
+                仮想環境に入った状態で、使用されるPythonのパスが正しいか確認します。
+                <div class="check-block">
+                    <span class="comment"># 仮想環境を有効化してパスを確認</span>
+                    <span><span class="prompt">$ </span>source ~/e_api/venv/bin/activate</span>
+                    <span>(venv) <span class="prompt">$ </span>which python</span>
+                    <span class="comment"></span>
+                    <span class="comment"># 正しい表示結果（末尾が「/e_api/venv/bin/python」になっていること）</span>
+                    <span class="output">/home/user/e_api/venv/bin/python</span>
+                </div>
+            </li>
+
+            <li>
+                <strong>4. systemdサービス稼働状態の最終確認</strong><br>
+                APIログインサービスがエラーなく、正常に起動・動作しているか確認します。
+                <div class="check-block">
+                    <span class="comment"># サービスの状態を確認</span>
+                    <span><span class="prompt">$ </span>sudo systemctl status e_api_login.service</span>
+                    <span class="comment"></span>
+                    <span class="comment"># 正しい表示結果（「Active: active (running)」または「active (exited)」が表示されていること）</span>
+                    <span>e_api_login.service - Tachibana API Login Service</span>
+                    <span>     Loaded: loaded (/etc/systemd/system/e_api_login.service; enabled; vendor preset: enabled)</span>
+                    <span>     Active: <span class="output">active (running)</span> since Sun 2026-05-31 12:00:00 JST; 5min ago</span>
+                    <span>   Main PID: 1234 (python)</span>
+                </div>
+            </li>
+        </ul>
+    </div>
 </div>
+
 
 </body>
 </html>
