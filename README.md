@@ -58,7 +58,7 @@ APIバージョン： v4r9
 ./file_info_p_no.txt  
   現在のp_noを保存します。
 
-./.auth/file_login_response.txt  
+./.auth/file_login_response.txt
   ログインで取得した応答を保存します。
 	
 =========================================
