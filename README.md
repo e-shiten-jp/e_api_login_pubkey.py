@@ -1,5 +1,5 @@
 # e_api_login_pubkey.py
-公開鍵認証対応　ログイン
+ログイン　公開鍵認証対応
 
 
 ｅ支店APIのログイン サンプルコード（python）
